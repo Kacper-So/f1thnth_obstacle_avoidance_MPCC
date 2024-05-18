@@ -1,37 +1,35 @@
-cmake_minimum_required(VERSION 3.14)
-project(obstacle_avoidance_MPCC)
+cmake_minimum_required(VERSION 3.5)
+project(MPCC_obstacle_avoidance)
 
-find_package(ament_cmake_auto REQUIRED)
-ament_auto_find_build_dependencies()
+# Default to C99
+if(NOT CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 99)
+endif()
 
-ament_auto_add_library(${PROJECT_NAME} SHARED
-  include/obstacle_avoidance_MPCC/obstacle_avoidance_MPCC.hpp
-  include/obstacle_avoidance_MPCC/visibility_control.hpp
-  src/obstacle_avoidance_MPCC.cpp
-)
+# Default to C++14
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
 
-ament_auto_add_library(${PROJECT_NAME}_node SHARED
-  include/obstacle_avoidance_MPCC/obstacle_avoidance_MPCC_node.hpp
-  src/obstacle_avoidance_MPCC_node.cpp
-)
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
-rclcpp_components_register_node(${PROJECT_NAME}_node
-  PLUGIN "obstacle_avoidance_MPCC::ObstacleAvoidanceMpccNode"
-  EXECUTABLE ${PROJECT_NAME}_node_exe
-)
+# find dependencies
+find_package(ament_cmake REQUIRED)
+# uncomment the following section in order to fill in
+# further dependencies manually.
+# find_package(<dependency> REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
+  # the following line skips the linter which checks for copyrights
+  # uncomment the line when a copyright and license is not present in all source files
+  #set(ament_cmake_copyright_FOUND TRUE)
+  # the following line skips cpplint (only works in a git repo)
+  # uncomment the line when this package is not in a git repo
+  #set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
-
-  ament_add_ros_isolated_gtest(test_obstacle_avoidance_MPCC
-    test/test_obstacle_avoidance_MPCC.cpp
-  )
-  ament_target_dependencies(test_obstacle_avoidance_MPCC ${TEST_SOURCES})
-  target_link_libraries(test_obstacle_avoidance_MPCC ${PROJECT_NAME})
 endif()
 
-ament_auto_package(INSTALL_TO_SHARE
-  launch
-  config
-)
+ament_package()
