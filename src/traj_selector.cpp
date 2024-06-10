@@ -26,6 +26,48 @@ using namespace std::placeholders;
 class TrajSelector : public rclcpp::Node {
 public:
     TrajSelector() : Node("Traj_selector") {
+        // Declare parameters
+        this->declare_parameter<bool>("only_behind_solutions", false);
+        this->declare_parameter<bool>("use_back", false);
+        this->declare_parameter<double>("distance_heuristic_weight", 1.0);
+        this->declare_parameter<double>("time_limit", 10000.0); // in milliseconds
+        this->declare_parameter<double>("minimum_turning_radius", 9.0);
+        this->declare_parameter<double>("maximum_turning_radius", 9.0);
+        this->declare_parameter<int>("turning_radius_size", 1);
+        this->declare_parameter<int>("theta_size", 144);
+        this->declare_parameter<double>("curve_weight", 1.0);
+        this->declare_parameter<double>("reverse_weight", 1.0);
+        this->declare_parameter<double>("lateral_goal_range", 0.5);
+        this->declare_parameter<double>("longitudinal_goal_range", 2.0);
+        this->declare_parameter<double>("angle_goal_range", 6.0);
+        this->declare_parameter<int>("obstacle_threshold", 100);
+        this->declare_parameter<double>("vehicle_length", 0.48);
+        this->declare_parameter<double>("vehicle_width", 0.25);
+        this->declare_parameter<double>("vehicle_base2back", 0.33);
+        this->declare_parameter<double>("out_time", 1.);
+
+        // Get parameter values
+        astarParam.only_behind_solutions = this->get_parameter("only_behind_solutions").as_bool();
+        astarParam.use_back = this->get_parameter("use_back").as_bool();
+        astarParam.distance_heuristic_weight = this->get_parameter("distance_heuristic_weight").as_double();
+
+        plannerCommonParam.time_limit = this->get_parameter("time_limit").as_double();
+        plannerCommonParam.minimum_turning_radius = this->get_parameter("minimum_turning_radius").as_double();
+        plannerCommonParam.maximum_turning_radius = this->get_parameter("maximum_turning_radius").as_double();
+        plannerCommonParam.turning_radius_size = this->get_parameter("turning_radius_size").as_int();
+        plannerCommonParam.theta_size = this->get_parameter("theta_size").as_int();
+        plannerCommonParam.curve_weight = this->get_parameter("curve_weight").as_double();
+        plannerCommonParam.reverse_weight = this->get_parameter("reverse_weight").as_double();
+        plannerCommonParam.lateral_goal_range = this->get_parameter("lateral_goal_range").as_double();
+        plannerCommonParam.longitudinal_goal_range = this->get_parameter("longitudinal_goal_range").as_double();
+        plannerCommonParam.angle_goal_range = this->get_parameter("angle_goal_range").as_double();
+        plannerCommonParam.obstacle_threshold = this->get_parameter("obstacle_threshold").as_int();
+
+        vehicleShape.length = this->get_parameter("vehicle_length").as_double();
+        vehicleShape.width = this->get_parameter("vehicle_width").as_double();
+        vehicleShape.base2back = this->get_parameter("vehicle_base2back").as_double();
+        out_time = this->get_parameter("out_time").as_double();
+
         // Subscription to topics
         racing_planner_traj_sub_ = this->create_subscription<autoware_auto_planning_msgs::msg::Trajectory>(
             "/planning/racing_planner/trajectory", 10,
@@ -60,29 +102,6 @@ public:
         clock_ = this->get_clock();
         last_callback_time_ = clock_->now();
 
-        // Initialize Astar parameters
-        astarParam.only_behind_solutions = false;
-        astarParam.use_back = false;
-        astarParam.distance_heuristic_weight = 1.0;
-
-        // Initialize common planner parameters
-        plannerCommonParam.time_limit = 10 * 1000.0;
-        plannerCommonParam.minimum_turning_radius = 9.0;
-        plannerCommonParam.maximum_turning_radius = 9.0;
-        plannerCommonParam.turning_radius_size = 1;
-        plannerCommonParam.theta_size = 144;
-        plannerCommonParam.curve_weight = 1.0;
-        plannerCommonParam.reverse_weight = 1.0;
-        plannerCommonParam.lateral_goal_range = 7.0;
-        plannerCommonParam.longitudinal_goal_range = 7.0;
-        plannerCommonParam.angle_goal_range = 6.0;
-        plannerCommonParam.obstacle_threshold = 100;
-
-        // Initialize vehicle shape
-        vehicleShape.length = 0.48;
-        vehicleShape.width = 0.25;
-        vehicleShape.base2back = 0.33;
-
         // Create Astar object
         astar = std::make_shared<freespace_planning_algorithms::AstarSearch>(plannerCommonParam, vehicleShape, astarParam);
     }
@@ -96,7 +115,7 @@ private:
     freespace_planning_algorithms::PlannerWaypoints astar_waypoints;
     geometry_msgs::msg::Pose start;
     geometry_msgs::msg::Pose goal;
-    float out_time = 1.;
+    double out_time;
     bool obstacle_detected = false;
     rclcpp::Time last_callback_time_;
     double accumulated_time_ = 0.0;
@@ -122,24 +141,22 @@ private:
         double dt = duration.seconds();
         accumulated_time_ += dt;
         last_callback_time_ = current_time;
-
-        if (obstacle_detected) {
-            if (accumulated_time_ > out_time) {
-                obstacle_detected = false;
-                accumulated_time_ = 0.0;
-            } else {
+        // RCLCPP_INFO(this->get_logger(), "accumulated_time: %f", accumulated_time_);
+        RCLCPP_INFO(this->get_logger(), "outtime: %f", out_time);
+        if (accumulated_time_ > out_time){
+            obstacle_detected = false;
+            accumulated_time_ = 0.0;
+            RCLCPP_INFO(this->get_logger(), "ref traj publish");
+            avoidance_traj_pub_->publish(*msg);
+        } else {
+            if(obstacle_detected){
                 astar->setMap(OG);
                 if(astar->makePlan(start, goal)){
                     astar_waypoints = astar->getWaypoints();
                     convertWaypointsToTrajectory(astar_waypoints, astar_traj);
-                    std::cout << "jest git" << std::endl;
                     avoidance_traj_pub_->publish(astar_traj);
-                } else {
-                    // RCLCPP_INFO(this->get_logger(), "Astar problem");
                 }
             }
-        } else {
-            // avoidance_traj_pub_->publish(*msg);
         }
     }
 
@@ -159,8 +176,6 @@ private:
             point.time_from_start.sec = 0;
             point.time_from_start.nanosec = 0;
             point.pose = wp.pose.pose;
-            point.pose.position.x = point.pose.position.x * OG.info.resolution + OG.info.origin.position.x;
-            point.pose.position.y = point.pose.position.y * OG.info.resolution + OG.info.origin.position.y;
             iter++;
             traj.points.push_back(point);
             waypoint_points.push_back(point.pose.position);

@@ -1,0 +1,20 @@
+traj_selector:
+  ros__parameters:
+    only_behind_solutions: false
+    use_back: false
+    distance_heuristic_weight: 1.0
+    time_limit: 10000.0
+    minimum_turning_radius: 1.0
+    maximum_turning_radius: 20.0
+    turning_radius_size: 1
+    theta_size: 144
+    curve_weight: 1.0
+    reverse_weight: 1.0
+    lateral_goal_range: 0.5
+    longitudinal_goal_range: 0.5
+    angle_goal_range: 15.0
+    obstacle_threshold: 100
+    vehicle_length: 0.48
+    vehicle_width: 0.25
+    vehicle_base2back: 0.33
+    out_time: 1.

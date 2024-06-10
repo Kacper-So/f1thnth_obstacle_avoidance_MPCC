@@ -19,6 +19,9 @@ find_package(autoware_auto_vehicle_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(freespace_planning_algorithms REQUIRED)
+install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch
+)
 
 
 include_directories(
