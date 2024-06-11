@@ -112,6 +112,7 @@ private:
     freespace_planning_algorithms::VehicleShape vehicleShape;
     std::shared_ptr<freespace_planning_algorithms::AstarSearch> astar;
     autoware_auto_planning_msgs::msg::Trajectory astar_traj;
+    autoware_auto_planning_msgs::msg::Trajectory ref_traj;
     freespace_planning_algorithms::PlannerWaypoints astar_waypoints;
     geometry_msgs::msg::Pose start;
     geometry_msgs::msg::Pose goal;
@@ -136,17 +137,18 @@ private:
     }
 
     void racingPlannerTrajectoryCallback(const autoware_auto_planning_msgs::msg::Trajectory::SharedPtr msg) {
+        ref_traj = *msg;
         rclcpp::Time current_time = clock_->now();
         rclcpp::Duration duration = current_time - last_callback_time_;
         double dt = duration.seconds();
         accumulated_time_ += dt;
         last_callback_time_ = current_time;
         // RCLCPP_INFO(this->get_logger(), "accumulated_time: %f", accumulated_time_);
-        RCLCPP_INFO(this->get_logger(), "outtime: %f", out_time);
+        // RCLCPP_INFO(this->get_logger(), "outtime: %f", out_time);
         if (accumulated_time_ > out_time){
             obstacle_detected = false;
             accumulated_time_ = 0.0;
-            RCLCPP_INFO(this->get_logger(), "ref traj publish");
+            // RCLCPP_INFO(this->get_logger(), "ref traj publish");
             avoidance_traj_pub_->publish(*msg);
         } else {
             if(obstacle_detected){
@@ -154,6 +156,7 @@ private:
                 if(astar->makePlan(start, goal)){
                     astar_waypoints = astar->getWaypoints();
                     convertWaypointsToTrajectory(astar_waypoints, astar_traj);
+
                     avoidance_traj_pub_->publish(astar_traj);
                 }
             }
@@ -175,8 +178,9 @@ private:
             point.time_from_start.sec = 0;
             point.time_from_start.nanosec = 0;
             point.pose = wp.pose.pose;
-            point.pose.position.x += curr_odometry.x;
-            point.pose.position.y += curr_odometry.y;
+            point.pose.position.x = (point.pose.position.x + curr_odometry->pose.pose.position.x - OG.info.origin.position.x) - 10*OG.info.resolution;
+            point.pose.position.y = (point.pose.position.y + curr_odometry->pose.pose.position.y - OG.info.origin.position.y) - 50*OG.info.resolution;
+            point.longitudinal_velocity_mps = 1.0;
             traj.points.push_back(point);
             waypoint_points.push_back(point.pose.position);
         }
