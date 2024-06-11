@@ -170,17 +170,16 @@ private:
         traj.header = waypoints.header;
         traj.points.clear();
         std::vector<geometry_msgs::msg::Point> waypoint_points;
-        int iter = 0;
         for (const auto& wp : waypoints.waypoints) {
             autoware_auto_planning_msgs::msg::TrajectoryPoint point;
             point.time_from_start.sec = 0;
             point.time_from_start.nanosec = 0;
             point.pose = wp.pose.pose;
-            iter++;
+            point.pose.position.x += curr_odometry.x;
+            point.pose.position.y += curr_odometry.y;
             traj.points.push_back(point);
             waypoint_points.push_back(point.pose.position);
         }
-        std::cout << iter << std::endl;
         publishPointCloud(waypoint_pointcloud_pub_, waypoint_points);
     }
 
