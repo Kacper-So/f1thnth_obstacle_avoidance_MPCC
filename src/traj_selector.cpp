@@ -70,7 +70,7 @@ public:
 
         // Subscription to topics
         racing_planner_traj_sub_ = this->create_subscription<autoware_auto_planning_msgs::msg::Trajectory>(
-            "/planning/racing_planner/trajectory", 10,
+            "/traj", 10,
             std::bind(&TrajSelector::racingPlannerTrajectoryCallback, this, _1));
 
         start_sub_ = this->create_subscription<geometry_msgs::msg::Pose>(
@@ -90,7 +90,7 @@ public:
             std::bind(&TrajSelector::obstacleDetectedCallback, this, _1));
 
         odometry_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
-            "/localization/kinematic_state", 10, std::bind(&TrajSelector::odometryCallback, this, std::placeholders::_1));
+            "/odom", 10, std::bind(&TrajSelector::odometryCallback, this, std::placeholders::_1));
 
         // Publisher
         avoidance_traj_pub_ = this->create_publisher<autoware_auto_planning_msgs::msg::Trajectory>(
